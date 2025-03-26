@@ -12,6 +12,7 @@ type ApiConfig struct {
 	fileserverHits atomic.Int32
 	Db             *db.Queries
 	Environment    string
+	JWTSecret      string
 }
 
 func (cfg *ApiConfig) MiddlewareMetricsInc(next http.Handler) http.Handler {
@@ -26,7 +27,7 @@ func (cfg *ApiConfig) Reset(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	err := cfg.Db.DeleteUsers(r.Context())
+	err := cfg.Db.DeleteAllUsers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

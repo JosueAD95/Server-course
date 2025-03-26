@@ -12,11 +12,21 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Password  string    `json:"password,omitempty"`
 }
 
-func (u *User) MapDBUser(dbUser db.User) {
+func (u *User) MapRowUser(dbUser db.CreateUserRow) {
 	u.ID = dbUser.ID
 	u.Email = dbUser.Email
 	u.CreatedAt = dbUser.CreatedAt
 	u.UpdatedAt = dbUser.UpdatedAt
+	u.Password = ""
+}
+
+func (u *User) MapDbUser(dbUser db.User) {
+	u.ID = dbUser.ID
+	u.Email = dbUser.Email
+	u.CreatedAt = dbUser.CreatedAt
+	u.UpdatedAt = dbUser.UpdatedAt
+	u.Password = ""
 }
