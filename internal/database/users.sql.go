@@ -59,9 +59,17 @@ FROM users
 WHERE email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+type GetUserByEmailRow struct {
+	ID             uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Email          string
+	HashedPassword string
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
-	var i User
+	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
@@ -70,4 +78,23 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.HashedPassword,
 	)
 	return i, err
+}
+
+const updateUserEmailAndPassword = `-- name: UpdateUserEmailAndPassword :exec
+UPDATE users
+SET email = $2,
+    hashed_password = $3,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateUserEmailAndPasswordParams struct {
+	ID             uuid.UUID
+	Email          string
+	HashedPassword string
+}
+
+func (q *Queries) UpdateUserEmailAndPassword(ctx context.Context, arg UpdateUserEmailAndPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserEmailAndPassword, arg.ID, arg.Email, arg.HashedPassword)
+	return err
 }

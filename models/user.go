@@ -8,11 +8,12 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password,omitempty"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	Password    string    `json:"password,omitempty"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 func (u *User) MapRowUser(dbUser db.CreateUserRow) {

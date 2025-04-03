@@ -10,6 +10,13 @@ SELECT id, created_at, updated_at, email, hashed_password
 FROM users
 WHERE email = $1;
 
+-- name: UpdateUserEmailAndPassword :exec
+UPDATE users
+SET email = $2,
+    hashed_password = $3,
+    updated_at = NOW()
+WHERE id = $1;
+
 -- name: DeleteAllUsers :exec
 DElETE
 FROM users;

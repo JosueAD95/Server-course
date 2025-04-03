@@ -11,6 +11,69 @@ import (
 	model "github.com/JosueAD95/Server-course/models"
 )
 
+func (cfg ApiConfig) UpdateUserCredentials(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("Couldn't find JWT: %s", err)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.JWTSecret)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("Couldn't validate JWT: %s", err)
+		return
+	}
+
+	type Request struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	user := Request{}
+	if err := decoder.Decode(&user); err != nil {
+		log.Printf("Error decoding body")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	password, err := auth.HashPassword(user.Password)
+	if err != nil {
+		log.Printf("Error hashing the password: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	userParams := db.UpdateUserEmailAndPasswordParams{
+		ID:             userId,
+		Email:          user.Email,
+		HashedPassword: password,
+	}
+
+	err = cfg.Db.UpdateUserEmailAndPassword(r.Context(), userParams)
+	if err != nil {
+		log.Printf("Error updating user '%s': %s", userId.String(), err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	user.Password = ""
+	data, err := json.Marshal(user)
+	if err != nil {
+		log.Printf("Error marshalling User '%s': %s", userId.String(), err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-type", "application/json")
+	w.Write(data)
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 func (cfg ApiConfig) AddUser(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	decoder := json.NewDecoder(r.Body)

@@ -51,7 +51,7 @@ func (cfg ApiConfig) GetChirpById(w http.ResponseWriter, r *http.Request) {
 	dbChirp, err := cfg.Db.GetChirpById(r.Context(), id)
 	if err != nil {
 		log.Printf("Error retriaving chirp : %s", err)
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -134,6 +134,51 @@ func (cfg ApiConfig) CreateChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 	w.Write(data)
+}
+
+func (cfg ApiConfig) DeleteChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("Error parsing chirpId parameter: %s", err)
+		return
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("Couldn't find JWT: %s", err)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.JWTSecret)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("Couldn't validate JWT: %s", err)
+		return
+	}
+
+	dbChirp, err := cfg.Db.GetChirpById(r.Context(), chirpID)
+	if err != nil {
+		log.Printf("Error retriaving chirp '%s': %s", chirpID.String(), err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if dbChirp.UserID != userId {
+		log.Printf("User Id from Chirp and user id from token are not the same")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	err = cfg.Db.DeleteChirp(r.Context(), chirpID)
+	if err != nil {
+		log.Printf("Couldn't delete chirp '%s': %s", chirpID.String(), err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func Healthz(w http.ResponseWriter, r *http.Request) {
