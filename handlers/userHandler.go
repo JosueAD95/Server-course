@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	auth "github.com/JosueAD95/Server-course/internal/auth"
 	db "github.com/JosueAD95/Server-course/internal/database"
 	model "github.com/JosueAD95/Server-course/models"
@@ -117,6 +119,52 @@ func (cfg ApiConfig) AddUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func (cfg ApiConfig) UpgradeUser(w http.ResponseWriter, r *http.Request) {
+	type event struct {
+		Data struct {
+			UserId uuid.UUID `json:"user_id"`
+		}
+		Event string `json:"event"`
+	}
+
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("Couldn't find Polka Api Key: %s", err)
+		return
+	}
+
+	if apiKey != cfg.PolkaAPIKey {
+		log.Printf("PolkaAPIKey provide does not match the APIKey")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	newEvent := event{}
+	if err := decoder.Decode(&newEvent); err != nil {
+		log.Printf("Error decoding JSON: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if newEvent.Event != "user.upgraded" {
+		log.Printf("Unsupported event: %s", newEvent.Event)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	err = cfg.Db.UpgradeUser(r.Context(), newEvent.Data.UserId)
+
+	if err != nil {
+		log.Printf("Error upgrading user (%s): %s", newEvent.Data.UserId.String(), err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (cfg ApiConfig) Login(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type parameters struct {
@@ -175,15 +223,18 @@ func (cfg ApiConfig) Login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	user := model.User{}
-	user.MapDbUser(u)
 
 	resp := response{
-		User:         user,
+		User: model.User{
+			ID:          u.ID,
+			UpdatedAt:   u.UpdatedAt,
+			CreatedAt:   u.CreatedAt,
+			IsChirpyRed: u.IsChirpyRed,
+			Email:       u.Email,
+		},
 		Token:        accessToken,
 		RefreshToken: refreshTokenParams.Token,
 	}
-
 	data, err := json.Marshal(resp)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)

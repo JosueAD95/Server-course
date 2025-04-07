@@ -26,6 +26,10 @@ func main() {
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is not set ")
 	}
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("POLKA_KEY environment variable is not set ")
+	}
 
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -36,6 +40,7 @@ func main() {
 		Db:          db.New(dbConn),
 		Environment: os.Getenv("Environment"),
 		JWTSecret:   jwtSecret,
+		PolkaAPIKey: polkaKey,
 	}
 
 	mux := http.NewServeMux()
@@ -65,6 +70,8 @@ func main() {
 	mux.HandleFunc("POST /api/refresh", apiCfg.RefreshToken)
 
 	mux.HandleFunc("POST /api/revoke", apiCfg.RevokeToken)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.UpgradeUser)
 
 	server := &http.Server{
 		Handler: mux,

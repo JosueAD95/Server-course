@@ -13,6 +13,7 @@ type ApiConfig struct {
 	Db             *db.Queries
 	Environment    string
 	JWTSecret      string
+	PolkaAPIKey    string
 }
 
 func (cfg *ApiConfig) MiddlewareMetricsInc(next http.Handler) http.Handler {
