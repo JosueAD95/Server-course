@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 
 	"github.com/google/uuid"
 
@@ -14,12 +15,26 @@ import (
 )
 
 func (cfg ApiConfig) GetAllChirps(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-type", "application/json")
+	authorId := r.URL.Query().Get("author_id")
+	sortType := r.URL.Query().Get("sort")
+	var dbChirps []database.Chirp
+	var err error
+	if authorId != "" {
+		id, _ := uuid.Parse(authorId)
+		dbChirps, err = cfg.Db.GetChirpsByUserId(r.Context(), id)
+	} else {
+		dbChirps, err = cfg.Db.GetChirps(r.Context())
+	}
 
-	dbChirps, err := cfg.Db.GetChirps(r.Context())
+	if sortType == "desc" {
+		sort.Slice(dbChirps, func(i, j int) bool { return dbChirps[i].CreatedAt.After(dbChirps[j].CreatedAt) })
+	} else {
+		sort.Slice(dbChirps, func(i, j int) bool { return dbChirps[i].CreatedAt.Before(dbChirps[j].CreatedAt) })
+	}
+
 	if err != nil {
 		log.Printf("Error retriaving all chirps: %s", err)
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -34,6 +49,7 @@ func (cfg ApiConfig) GetAllChirps(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
+	w.Header().Add("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
 }
